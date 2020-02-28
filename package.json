@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "async": "^3.1.1",
-    "echojs-lib": "^1.9.9",
+    "echojs-lib": "^1.10.0-rc.3",
     "ethereum-protocol": "^1.0.1",
     "semaphore": "^1.1.0",
     "web3": "^1.2.6",
