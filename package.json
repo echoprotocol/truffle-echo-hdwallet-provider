@@ -1,0 +1,44 @@
+{
+  "name": "echo-provider",
+  "version": "0.0.1",
+  "description": "Provider for deploying ethereum contracts to echo blockchain",
+  "author": {
+    "name": "PixelPlex, Inc.",
+    "email": "info@pixelplex.io",
+    "url": "https://pixelplex.io"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/echoprotocol/aaaaa.git"
+  },
+  "homepage": "https://github.com/echoprotocol/aaaaa",
+  "bugs": {
+    "url": "https://github.com/echoprotocol/aaaaa/issues"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "async": "^3.1.1",
+    "echojs-lib": "^1.9.9",
+    "ethereum-protocol": "^1.0.1",
+    "semaphore": "^1.1.0",
+    "web3": "^1.2.6",
+    "web3-provider-engine": "git+https://github.com/trufflesuite/provider-engine.git#web3-one"
+  },
+  "devDependencies": {
+    "truffle": "^5.1.13",
+    "@types/async": "^3.0.8",
+    "@types/ethereum-protocol": "^1.0.0",
+    "@types/semaphore": "^1.1.0"
+  },
+  "keywords": [
+    "echo",
+    "ethereum",
+    "provider",
+    "wallet"
+  ]
+}
