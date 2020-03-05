@@ -16,6 +16,7 @@ interface EchoCommonTrx {
   to?: string;
   value?: ValueObject;
   amount?: ValueObject;
+  fee?: ValueObject;
   code?: string;
   callee?: string;
   eth_accuracy?: boolean;

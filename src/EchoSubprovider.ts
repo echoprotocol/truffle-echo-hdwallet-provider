@@ -41,11 +41,6 @@ class EchoSubprovider extends Subprovider {
           ], end);
           return;
 
-        case 'eth_getTransactionReceipt':
-          // next().then((res: any) => console.log(123456, res))
-          // waterfall([
-          //   (cb: Function) => this.getReceipt(txParams, cb),
-          // ], end)
         default:
           next();
           return;
@@ -98,7 +93,7 @@ class EchoSubprovider extends Subprovider {
       this.emitPayload({
         method: 'eth_sendRawTransaction',
         params: [rawTx],
-      }, (err: Error | null, res: JSONRPCResponsePayload) => {
+      }, (err: Error | null | undefined, res: JSONRPCResponsePayload) => {
         if (err) return cb(err);
         cb(null, res.result);
       });

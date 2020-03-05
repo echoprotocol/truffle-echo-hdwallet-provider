@@ -2,7 +2,8 @@ import Web3 from "web3";
 import ProviderEngine from "web3-provider-engine";
 import ProviderSubprovider from "web3-provider-engine/subproviders/provider";
 import { JSONRPCRequestPayload, JSONRPCErrorCallback } from "ethereum-protocol";
-import echo, { PrivateKey, constants } from 'echojs-lib';
+import echo, { PrivateKey, constants, Transaction } from 'echojs-lib';
+import { parallel } from 'async';
 
 import EchoSubprovider from './EchoSubprovider';
 import Utils from './ProviderUtils';
@@ -11,28 +12,32 @@ import { EthereumCommonTrx, EchoCommonTrxData } from './TransactionInterfaces';
 
 class EchoProvider {
   public engine: ProviderEngine;
+  private web3: Web3;
   private ethAddress: string;
   private echoId: string;
   private privateKey: string;
   private protocol: string;
 
-  private waitForConnectingEchoJsLib: boolean = false;
-  private isEchoJsLibConnect: boolean = false;
-
   constructor(
     privateKey: string,
     echoId: string,
     web3Url: string,
-    echoUrl: string
   ) {
-
-    const ethAddress = Utils.idToAddress(echoId);
-    this.ethAddress = ethAddress;
+    this.ethAddress = Utils.idToAddress(echoId);
     this.echoId = echoId;
     this.privateKey = privateKey;
     this.protocol = web3Url.split(':')[0] || 'http';
 
     this.engine = new ProviderEngine();
+    this.web3 = new Web3('ws' + web3Url.substring(web3Url.indexOf(':')));
+
+    this.web3.extend({
+      methods: [{
+        name: 'chainId',
+        call: 'eth_chainId',
+      }]
+    });
+
     const tmpEthAddress = this.ethAddress;
     const tmpPrivateKey = this.privateKey;
 
@@ -47,16 +52,23 @@ class EchoProvider {
             return cb && cb('Account not found');
           }
           const echoLikeTxParams = this.normalizeParams(txParams);
-          if (!this.waitForConnectingEchoJsLib && !this.isEchoJsLibConnect) {
-            this.waitForConnectingEchoJsLib = true;
-            echo.connect(echoUrl).then(() => {
-              this.waitForConnectingEchoJsLib = false;
-              this.isEchoJsLibConnect = true;
-              this.serializeTransaction(echoLikeTxParams, tmpPrivateKey, cb);
-            });
-          } else if (this.isEchoJsLibConnect) {
-            this.serializeTransaction(echoLikeTxParams, tmpPrivateKey, cb);
-          }
+          this.getExtraChainData(txParams, (err: Error | null | undefined, res: any) => {
+            if (err) return cb(err);
+            const fee = res.gas;
+            const chainIdUnhandle = res.id;
+            const chainId = chainIdUnhandle.slice(2);
+            const head_block_number = res.block.number.toString();
+            const head_block_id = res.block.hash.slice(26);
+
+            echoLikeTxParams[1].fee = {
+              asset_id: '1.3.0', amount: fee
+            }
+            const tx: any = new Transaction().addOperation(...echoLikeTxParams);
+            tx.chainId = chainId;
+            tx.refBlockNum = Number(head_block_number);
+            tx.refBlockPrefix = head_block_id;
+            this.serializeTransaction(tx, tmpPrivateKey, cb)
+          });
         }
       })
     );
@@ -77,12 +89,27 @@ class EchoProvider {
     this.engine.start();
   }
 
-  private serializeTransaction(txParams: EchoCommonTrxData, tmpPrivateKey: string, cb: any) {
-    const tx = echo.createTransaction().addOperation(...txParams)
+  private serializeTransaction(tx: any, tmpPrivateKey: string, cb: any) {
     tx.sign(PrivateKey.fromWif(tmpPrivateKey)).then(() => {
-      const rawTx = '0x' + tx.signedTransactionSerializer().toString('hex').toLowerCase();
+      const rawTx = tx.signedTransactionSerializer().toString('hex');
       cb(null, rawTx);
     });
+  }
+
+  private getExtraChainData(txParams: EthereumCommonTrx, cb: any) {
+    parallel({
+      block: (cb: any) => this.web3.eth.getBlock('latest', true, cb),
+      gas: (txParams.to && txParams.data) ? (cb: any) => this.web3.eth.estimateGas({
+        from: txParams.from,
+        data: txParams.data,
+        to: txParams.to,
+      }, cb) : (cb: any) => this.web3.eth.estimateGas({
+        from: txParams.from,
+        data: txParams.data,
+        value: txParams.value || 0,
+      }, cb),
+      id: (cb) => (this.web3 as any)['chainId'](cb),
+    }, cb);
   }
 
   private normalizeParams(txParams: EthereumCommonTrx): EchoCommonTrxData {

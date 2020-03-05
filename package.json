@@ -10,11 +10,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/echoprotocol/aaaaa.git"
+    "url": "https://github.com/echoprotocol/truffle-echo-hdwallet-provider.git"
   },
-  "homepage": "https://github.com/echoprotocol/aaaaa",
+  "homepage": "https://github.com/echoprotocol/truffle-echo-hdwallet-provider",
   "bugs": {
-    "url": "https://github.com/echoprotocol/aaaaa/issues"
+    "url": "https://github.com/echoprotocol/truffle-echo-hdwallet-provider/issues"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

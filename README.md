@@ -10,7 +10,6 @@ const EchoProvider = require('EchoProvider');
 const WIF = '5JRfk9ERZMRxU556gJ4MwpuxFySiNhNANjQYShTvsHyTumJ1KzS';
 const accountId = '1.2.25';
 const ethRpcUrl = 'http://127.0.0.1:8092';
-const echojsLibUrl = 'http://127.0.0.1:6311';
 
 module.exports = {
   echo: {
@@ -21,13 +20,12 @@ module.exports = {
           WIF,
           accountId,
           ethRpcUrl,
-          echojsLibUrl,
         )
     },
 };
 ```
 then:
-  ## truffle migrate --network echo
+  truffle migrate --network echo
 
 Copyright (c) 2020 Echo Technological Solutions LLC
 
