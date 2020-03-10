@@ -5,6 +5,7 @@
     "noImplicitAny": true,
     "declaration": true,
     "sourceMap": true,
+    "skipLibCheck": true,
     "esModuleInterop": true,
     "strict": true,
     "lib": [
