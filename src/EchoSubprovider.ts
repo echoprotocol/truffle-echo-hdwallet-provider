@@ -8,41 +8,83 @@ import { EthereumCommonTrx } from './TransactionInterfaces';
 interface ConstructorOptionts {
   getAccounts: Function;
   signTransaction: Function;
+  debug?: boolean;
 }
 
 class EchoSubprovider extends Subprovider {
+
+  public debug: boolean;
+
+  private log(payload: any, error: any, result: any): void {
+    if (!this.debug) return;
+    console.log();
+    console.log(" >>", payload);
+    console.log(" <<", error || result);
+    console.log();
+  }
+
   constructor(opts: ConstructorOptionts) {
     super();
     this.nonceLock = Semaphore(1);
     this.getAccounts = opts.getAccounts;
     this.signTransaction = opts.signTransaction;
+    this.debug = !!opts.debug;
 
     this.handleRequest = (payload: JSONRPCRequestPayload, next: any, end: any) => {
-      const txParams: EthereumCommonTrx = payload.params[0];
       switch (payload.method) {
         case 'eth_accounts':
           this.getAccounts((err: Error | null, accounts: Array<string>) => {
+            this.log(payload, err, accounts);
             if (err) return end(err);
             end(null, accounts);
           });
           return;
 
-        case 'eth_signTransaction':
+        case 'eth_signTransaction': {
+          const txParams: EthereumCommonTrx = payload.params[0];
           waterfall([
             (cb: Function) => this.validateTransaction(txParams, cb),
             (txParams: EthereumCommonTrx, cb: Function) => this.processSignTransaction(txParams, cb),
-          ], end);
+          ], (err, res) => {
+            this.log(payload, err, res);
+            end(err, res);
+          });
           return;
+        }
 
-        case 'eth_sendTransaction':
+        case 'eth_sendTransaction': {
+          const txParams: EthereumCommonTrx = payload.params[0];
           waterfall([
             (cb: Function) => this.validateTransaction(txParams, cb),
             (txParams: EthereumCommonTrx, cb: Function) => this.processTransaction(txParams, cb),
-          ], end);
+          ], (err, res) => {
+            this.log(payload, err, res);
+            end(err, res);
+          });
+          return;
+        }
+
+        case 'evm_snapshot':
+          // FIXME:
+          const res = "0x0";
+          this.log(payload, null, res);
+          end(null, res);
+          return;
+
+        case 'eth_getBlockByNumber':
+          if (payload.params[0] === undefined) payload.params[0] = "0x1";
+          next((err: any, res: any, cb: any) => {
+            if (res) res.gasLimit = "0xffffffff";
+            this.log(payload, err, res);
+            cb(err, res);
+          });
           return;
 
         default:
-          next();
+          next((err: any, res: any, cb: any) => {
+            this.log(payload, err, res);
+            cb(err, res);
+          });
           return;
       }
     };

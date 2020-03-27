@@ -5,11 +5,11 @@ You can easily use this with Truffle.
 
 truffle-config.js:
 ```javascript
-const EchoProvider = require('EchoProvider');
+const EchoProvider = require('echo-provider');
 
 const WIF = '5JRfk9ERZMRxU556gJ4MwpuxFySiNhNANjQYShTvsHyTumJ1KzS';
 const accountId = '1.2.25';
-const ethRpcUrl = 'http://127.0.0.1:8092';
+const ethRpcUrl = 'ws://127.0.0.1:8092';
 
 module.exports = {
   echo: {
@@ -17,9 +17,13 @@ module.exports = {
       skipDryRun: true,   // important to skip dry run
       provider: () =>
         new EchoProvider(
-          WIF,
-          accountId,
           ethRpcUrl,
+          {
+            accounts: { accountId: WIF }, // you could pass a few accounts or skip if using syncAccountsWithTestrpc options
+            debug: false, // use debug for watch rpc requests and responses in console
+            startRequestId: 0, // you could specify request id start parameter or skip it
+            syncAccountsWithTestrpc: true // if you are using testrpc, by this parameter provider automatically grab accounts from node, if usings this you could skip accounts options
+          }
         )
     },
 };

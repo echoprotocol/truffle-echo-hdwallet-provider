@@ -5,6 +5,7 @@ import { JSONRPCRequestPayload, JSONRPCErrorCallback } from "ethereum-protocol";
 import { PrivateKey, constants, Transaction } from 'echojs-lib';
 import { parallel } from 'async';
 import { promisify } from "util";
+import { WebsocketProvider } from "web3-core";
 
 import EchoSubprovider from './EchoSubprovider';
 import Utils from './ProviderUtils';
@@ -14,6 +15,7 @@ interface EchoProviderOptions {
   accounts?: { [accountId: string]: PrivateKey | string };
   syncAccountsWithTestrpc?: boolean | "always";
   startRequestId?: number;
+  debug?: boolean;
 }
 
 class EchoProvider {
@@ -32,9 +34,11 @@ class EchoProvider {
   constructor(web3Url: string, options: EchoProviderOptions = {}) {
     const accounts = options.accounts || {};
     this.protocol = web3Url.split(':')[0] || 'http';
-    this.engine = new ProviderEngine();
-    this.web3 = new Web3('ws' + web3Url.substring(web3Url.indexOf(':')));
-    this.web3.extend({ methods: [{ name: 'chainId', call: 'eth_chainId' }] });
+    const engine = new ProviderEngine();
+    const handler = {
+      get: (obj: any, prop: any) => prop === 'silent' ? false : obj[prop],
+    }
+    this.engine = new Proxy(engine, handler);
     this.shouldSyncAccountsWithTestrpc = options.syncAccountsWithTestrpc || false;
     this.requestId = options.startRequestId === undefined
       ? Math.floor(Math.random() * Number.MAX_SAFE_INTEGER) : options.startRequestId;
@@ -46,6 +50,7 @@ class EchoProvider {
     }
     this.engine.addProvider(
       new EchoSubprovider({
+        debug: options.debug,
         getAccounts: async (cb?: (err: unknown, accounts?: string[]) => unknown) => {
           try {
             await this.syncAccountsWithTestrpc();
@@ -71,11 +76,25 @@ class EchoProvider {
             const chainId = chainIdUnhandle.slice(2);
             const head_block_number = res.block.number.toString();
             const head_block_id = res.block.hash.slice(26);
+            const head_block_time = res.block.timestamp;
             echoLikeTxParams[1].fee = { asset_id: '1.3.0', amount: fee };
             const tx: any = new Transaction().addOperation(...echoLikeTxParams);
             tx.chainId = chainId;
             tx.refBlockNum = Number(head_block_number);
             tx.refBlockPrefix = head_block_id;
+            tx.expiration = Math.max(Math.floor(Date.now() / 1e3), head_block_time);
+            if (options.debug) {
+              console.log();
+              console.log("ETH:", txParams);
+              console.log("OP: ", echoLikeTxParams);
+              console.log("TX: ", {
+                chainId: tx.chainId,
+                refBlockNum: tx.refBlockNum,
+                refBlockPrefix: tx.refBlockPrefix,
+                expiration: tx.expiration,
+              });
+              console.log();
+            }
             result = await promisify(this.serializeTransaction.bind(this))(tx, privateKey);
           } catch (error) {
             if (cb) return cb(error);
@@ -101,6 +120,10 @@ class EchoProvider {
     }
     this.engine.addProvider(new ProviderSubprovider(subProvider));
     this.engine.start();
+    // @ts-ignore
+    const web3Provider = this as WebsocketProvider;
+    this.web3 = new Web3(web3Provider);
+    this.web3.extend({ methods: [{ name: 'chainId', call: 'eth_chainId' }] });
   }
 
   public async syncAccountsWithTestrpc(): Promise<void> {
@@ -120,6 +143,7 @@ class EchoProvider {
     for (const { address, privkey } of accounts) {
       this.accounts[address] = PrivateKey.fromBuffer(Buffer.from(privkey.slice(2), "hex"));
     }
+    this._accountsSyncedWithTestrpc = true;
   }
 
   private serializeTransaction(tx: any, rawPrivateKey: string | PrivateKey, cb: any) {
@@ -137,6 +161,7 @@ class EchoProvider {
         from: txParams.from,
         data: txParams.data,
         to: txParams.to,
+        value: txParams.value || 0,
       }, cb) : (cb: any) => this.web3.eth.estimateGas({
         from: txParams.from,
         data: txParams.data,
@@ -165,7 +190,7 @@ class EchoProvider {
         registrar: from,
         value: {
           asset_id: '1.3.0',
-          amount: 0
+          amount: txParams.value || 0,
         },
         code: txParams.data.substring(2),
         eth_accuracy: false,
